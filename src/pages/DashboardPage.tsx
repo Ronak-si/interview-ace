@@ -23,6 +23,12 @@ import { useAuth } from "@/hooks/useAuth";
 import { listInterviews, summarise } from "@/services/interviewService";
 import { formatRelative, formatScore, scoreTone } from "@/utils/format";
 
+const TONE = {
+  success: "border-success/40 text-success",
+  warning: "border-warning/40 text-warning",
+  destructive: "border-destructive/40 text-destructive",
+} as const;
+
 /** Home screen: KPIs, score trend and recent activity. */
 export default function DashboardPage() {
   const { profile, user } = useAuth();
@@ -231,10 +237,7 @@ export default function DashboardPage() {
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
                     {interview.status === "completed" ? (
-                      <Badge
-                        variant="outline"
-                        className={`rounded-lg border-${scoreTone(interview.overall_score)}/40 text-${scoreTone(interview.overall_score)}`}
-                      >
+                      <Badge variant="outline" className={`rounded-lg ${TONE[scoreTone(interview.overall_score)]}`}>
                         {formatScore(interview.overall_score)}/100
                       </Badge>
                     ) : (

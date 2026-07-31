@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Outlet, createFileRoute, useNavigate, useRouterState } from "@tanstack/react-router";
+import { Outlet, createFileRoute, useNavigate } from "@tanstack/react-router";
 
 import { AppLayout } from "@/layouts/AppLayout";
 import { FullPageLoader } from "@/components/common/Loaders";
@@ -13,13 +13,12 @@ export const Route = createFileRoute("/_authenticated")({
 function AuthenticatedLayout() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
-  const pathname = useRouterState({ select: (s) => s.location.pathname });
 
   useEffect(() => {
     if (!loading && !user) {
-      void navigate({ to: "/login", search: { redirect: pathname }, replace: true });
+      void navigate({ to: "/login", replace: true });
     }
-  }, [loading, user, navigate, pathname]);
+  }, [loading, user, navigate]);
 
   if (loading || !user) return <FullPageLoader />;
 
