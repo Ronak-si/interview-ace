@@ -86,7 +86,6 @@
   --surface: oklch(0.97 0.005 265);
   --surface-foreground: oklch(0.3 0.02 265);
 
-  --primary: oklch(0.55 0.21 governs);
   --primary: oklch(0.55 0.21 275);
   --primary-foreground: oklch(0.99 0.005 275);
   --primary-glow: oklch(0.72 0.16 300);
