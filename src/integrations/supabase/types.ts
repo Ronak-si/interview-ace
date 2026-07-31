@@ -14,7 +14,102 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      interviews: {
+        Row: {
+          answers: Json
+          communication_score: number | null
+          completed_at: string | null
+          created_at: string
+          difficulty: string
+          duration_seconds: number
+          evaluation: Json | null
+          id: string
+          overall_score: number | null
+          problem_solving_score: number | null
+          question_count: number
+          questions: Json
+          role: string
+          status: string
+          technical_score: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          answers?: Json
+          communication_score?: number | null
+          completed_at?: string | null
+          created_at?: string
+          difficulty: string
+          duration_seconds?: number
+          evaluation?: Json | null
+          id?: string
+          overall_score?: number | null
+          problem_solving_score?: number | null
+          question_count?: number
+          questions?: Json
+          role: string
+          status?: string
+          technical_score?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          answers?: Json
+          communication_score?: number | null
+          completed_at?: string | null
+          created_at?: string
+          difficulty?: string
+          duration_seconds?: number
+          evaluation?: Json | null
+          id?: string
+          overall_score?: number | null
+          problem_solving_score?: number | null
+          question_count?: number
+          questions?: Json
+          role?: string
+          status?: string
+          technical_score?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          bio: string | null
+          created_at: string
+          email: string | null
+          experience_level: string
+          full_name: string | null
+          id: string
+          target_role: string
+          updated_at: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          bio?: string | null
+          created_at?: string
+          email?: string | null
+          experience_level?: string
+          full_name?: string | null
+          id: string
+          target_role?: string
+          updated_at?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          bio?: string | null
+          created_at?: string
+          email?: string | null
+          experience_level?: string
+          full_name?: string | null
+          id?: string
+          target_role?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
