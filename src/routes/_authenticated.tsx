@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { Outlet, createFileRoute, useNavigate, useRouterState } from "@tanstack/react-router";
 
-import AppLayout from "@/layouts/AppLayout";
+import { AppLayout } from "@/layouts/AppLayout";
 import { FullPageLoader } from "@/components/common/Loaders";
 import { useAuth } from "@/hooks/useAuth";
 
