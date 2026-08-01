@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 
@@ -43,8 +43,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  // Guards against re-fetching the same profile on every auth event (token refresh,
+  // tab focus, INITIAL_SESSION + getSession racing) — that was the duplicate-request storm.
+  const loadedForRef = useRef<string | null>(null);
 
-  const loadProfile = useCallback(async (userId: string) => {
+  const loadProfile = useCallback(async (userId: string, force = false) => {
+    if (!force && loadedForRef.current === userId) return;
+    loadedForRef.current = userId;
+
     const { data, error } = await supabase
       .from("profiles")
       .select("id, email, full_name, avatar_url, target_role, experience_level, bio")
@@ -52,6 +58,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .maybeSingle();
 
     if (error) {
+      loadedForRef.current = null;
       console.error("[auth] failed to load profile", error.message);
       return;
     }
@@ -64,9 +71,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(nextSession?.user ?? null);
       setLoading(false);
       if (nextSession?.user) {
+        const uid = nextSession.user.id;
         // defer: never call another supabase fn synchronously inside this callback
-        setTimeout(() => void loadProfile(nextSession.user.id), 0);
+        setTimeout(() => void loadProfile(uid), 0);
       } else {
+        loadedForRef.current = null;
         setProfile(null);
       }
     });
