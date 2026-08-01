@@ -1,4 +1,4 @@
-import { generateText, NoObjectGeneratedError, Output } from "ai";
+import { generateText } from "ai";
 import { z } from "zod";
 
 import { createLovableAiGatewayProvider } from "@/lib/ai-gateway.server";
@@ -108,48 +108,43 @@ function friendlyAiError(error: unknown): never {
   if (message.includes("402")) {
     throw new Error("AI credits exhausted. Add credits in your workspace to continue.");
   }
-  if (NoObjectGeneratedError.isInstance(error)) {
-    throw new Error("The AI response was incomplete. Please generate the interview again.");
-  }
   throw new Error(message);
 }
 
 export async function generateInterviewQuestions(data: GenerateData) {
   try {
-    const { output } = await generateText({
+    const { text } = await generateText({
       model: getGateway()(MODEL),
-      output: Output.object({ schema: QuestionsSchema }),
       system:
-        "You are a senior technical interviewer. Produce realistic, non-generic interview questions. Vary topics and never repeat a question. Return every required field. Use an empty string rather than omitting a value.",
+        "You are a senior technical interviewer. Produce realistic, non-generic interview questions. Vary topics and never repeat a question. Return only valid JSON with no markdown or commentary.",
       prompt: `Create exactly ${data.questionCount} ${data.difficulty} interview questions for a ${data.role} role.${
         data.focus ? ` Focus areas: ${data.focus}.` : ""
-      } Each item must contain question, topic, and hint strings.`,
+      } Return this shape: {"questions":[{"question":"...","topic":"...","hint":"..."}]}. Every item must contain question, topic, and hint strings.`,
     });
-    return normalizeQuestions(output, data.questionCount);
-  } catch (error) {
-    if (NoObjectGeneratedError.isInstance(error)) {
-      const recovered = normalizeQuestions(extractJson(error.text), data.questionCount);
-      if (recovered.length > 0) return recovered;
+    const questions = normalizeQuestions(extractJson(text), data.questionCount);
+    if (questions.length === 0) {
+      throw new Error("The AI returned no usable questions. Please generate the interview again.");
     }
+    return questions;
+  } catch (error) {
     friendlyAiError(error);
   }
 }
 
 export async function evaluateInterviewAnswers(prompt: string) {
   try {
-    const { output } = await generateText({
+    const { text } = await generateText({
       model: getGateway()(MODEL),
-      output: Output.object({ schema: EvaluationSchema }),
       system:
-        "You are a strict but fair technical interview evaluator. Scores are 0-100 integers. Unanswered questions score 0. Return every required field and be concrete and actionable.",
-      prompt,
+        "You are a strict but fair technical interview evaluator. Scores are 0-100 integers. Unanswered questions score 0. Be concrete and actionable. Return only valid JSON with no markdown or commentary.",
+      prompt: `${prompt}\n\nReturn exactly this shape: {"overallScore":0,"technicalScore":0,"communicationScore":0,"problemSolvingScore":0,"summary":"...","strengths":["..."],"weaknesses":["..."],"suggestions":["..."],"perQuestion":[{"questionId":"q1","score":0,"feedback":"...","idealAnswer":"..."}]}.`,
     });
-    return output;
-  } catch (error) {
-    if (NoObjectGeneratedError.isInstance(error)) {
-      const recovered = normalizeEvaluation(extractJson(error.text));
-      if (recovered) return recovered;
+    const evaluation = normalizeEvaluation(extractJson(text));
+    if (!evaluation) {
+      throw new Error("The AI returned incomplete feedback. Please submit the interview again.");
     }
+    return evaluation;
+  } catch (error) {
     friendlyAiError(error);
   }
 }
