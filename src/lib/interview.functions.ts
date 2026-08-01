@@ -1,110 +1,24 @@
 import { createServerFn } from "@tanstack/react-start";
-import { generateText, NoObjectGeneratedError, Output } from "ai";
 import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { createLovableAiGatewayProvider } from "@/lib/ai-gateway.server";
-
-const MODEL = "google/gemini-3.6-flash";
-
-const GenerateInput = z.object({
-  role: z.string().min(2),
-  difficulty: z.string().min(2),
-  questionCount: z.number().int().min(3).max(20),
-  focus: z.string().max(300).optional(),
-});
-
-/** Schemas sent to the model stay constraint-free — bounds are enforced in code. */
-const QuestionsSchema = z.object({
-  questions: z.array(
-    z.object({
-      question: z.string(),
-      topic: z.string(),
-      hint: z.string(),
-    }),
-  ),
-});
-
-
-const EvaluateInput = z.object({
-  interviewId: z.string().uuid(),
-  answers: z.record(z.string(), z.string()),
-  durationSeconds: z.number().int().min(0),
-});
-
-const EvaluationSchema = z.object({
-  overallScore: z.number(),
-  technicalScore: z.number(),
-  communicationScore: z.number(),
-  problemSolvingScore: z.number(),
-  summary: z.string(),
-  strengths: z.array(z.string()),
-  weaknesses: z.array(z.string()),
-  suggestions: z.array(z.string()),
-  perQuestion: z.array(
-    z.object({
-      questionId: z.string(),
-      score: z.number(),
-      feedback: z.string(),
-      idealAnswer: z.string(),
-    }),
-  ),
-});
-
-function gateway() {
-  const key = process.env["LOVABLE_API_KEY"];
-  if (!key) throw new Error("AI is not configured yet. Missing LOVABLE_API_KEY.");
-  return createLovableAiGatewayProvider(key);
-}
-
-function aiError(error: unknown): never {
-  const message = error instanceof Error ? error.message : String(error);
-  if (message.includes("429")) throw new Error("AI rate limit reached. Please retry in a moment.");
-  if (message.includes("402"))
-    throw new Error("AI credits exhausted. Add credits in your workspace to continue.");
-  throw new Error(message);
-}
-
-/** Last-resort parse of raw model text when schema validation fails. */
-function parseFallback<T>(schema: z.ZodType<T>, text: string | undefined): T | null {
-  if (!text) return null;
-  const match = text.match(/\{[\s\S]*\}/);
-  if (!match) return null;
-  try {
-    const parsed = schema.safeParse(JSON.parse(match[0]));
-    return parsed.success ? parsed.data : null;
-  } catch {
-    return null;
-  }
-}
+import { evaluateInterviewAnswers, generateInterviewQuestions } from "@/lib/interview.server";
 
 /** Generates questions with AI and stores a new in-progress interview. */
 export const generateInterview = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => GenerateInput.parse(input))
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        role: z.string().min(2),
+        difficulty: z.string().min(2),
+        questionCount: z.number().int().min(3).max(20),
+        focus: z.string().max(300).optional(),
+      })
+      .parse(input),
+  )
   .handler(async ({ data, context }) => {
-    let generated: z.infer<typeof QuestionsSchema> | null = null;
-    try {
-      const { output } = await generateText({
-        model: gateway()(MODEL),
-        output: Output.object({ schema: QuestionsSchema }),
-        system:
-          "You are a senior technical interviewer. Produce realistic, non-generic interview questions. Vary topics and never repeat a question. Reply with JSON only.",
-        prompt: `Create exactly ${data.questionCount} ${data.difficulty} interview questions for a ${data.role} role.${
-          data.focus ? ` Focus areas: ${data.focus}.` : ""
-        } Each item: the question, a short topic label (e.g. "React", "System Design"), and a one-line hint for the candidate.`,
-      });
-      generated = output;
-    } catch (error) {
-      if (NoObjectGeneratedError.isInstance(error)) {
-        generated = parseFallback(QuestionsSchema, error.text);
-      }
-      if (!generated) aiError(error);
-    }
-
-    const questions = (generated?.questions ?? [])
-      .slice(0, data.questionCount)
-      .map((q, index) => ({ id: `q${index + 1}`, ...q }));
+    const questions = await generateInterviewQuestions(data);
 
     if (questions.length === 0) {
       throw new Error("The AI returned no questions. Please try again.");
@@ -132,7 +46,15 @@ export const generateInterview = createServerFn({ method: "POST" })
 /** Scores the submitted answers with AI and completes the interview. */
 export const evaluateInterview = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => EvaluateInput.parse(input))
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        interviewId: z.string().uuid(),
+        answers: z.record(z.string(), z.string()),
+        durationSeconds: z.number().int().min(0),
+      })
+      .parse(input),
+  )
   .handler(async ({ data, context }) => {
     const { data: interview, error: loadError } = await context.supabase
       .from("interviews")
@@ -156,22 +78,9 @@ export const evaluateInterview = createServerFn({ method: "POST" })
       )
       .join("\n\n");
 
-    let evaluation: z.infer<typeof EvaluationSchema> | null = null;
-    try {
-      const { output } = await generateText({
-        model: gateway()(MODEL),
-        output: Output.object({ schema: EvaluationSchema }),
-        system:
-          "You are a strict but fair technical interview evaluator. Scores are 0-100 integers. Unanswered questions score 0. Be concrete and actionable. Reply with JSON only.",
-        prompt: `Role: ${interview.role}. Difficulty: ${interview.difficulty}.\n\n${transcript}\n\nEvaluate the candidate. Return one perQuestion entry per question using the exact question id, plus overall, technical, communication and problem solving scores, a 2-3 sentence summary, strengths, weaknesses and suggestions.`,
-      });
-      evaluation = output;
-    } catch (error) {
-      if (NoObjectGeneratedError.isInstance(error)) {
-        evaluation = parseFallback(EvaluationSchema, error.text);
-      }
-      if (!evaluation) aiError(error);
-    }
+    const evaluation = await evaluateInterviewAnswers(
+      `Role: ${interview.role}. Difficulty: ${interview.difficulty}.\n\n${transcript}\n\nEvaluate the candidate. Return one perQuestion entry per question using the exact question id, plus overall, technical, communication and problem solving scores, a 2-3 sentence summary, strengths, weaknesses and suggestions.`,
+    );
 
 
     const { error: updateError } = await context.supabase
