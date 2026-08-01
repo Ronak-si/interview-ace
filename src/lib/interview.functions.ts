@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { generateText, Output } from "ai";
+import { generateText, NoObjectGeneratedError, Output } from "ai";
 import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
@@ -14,17 +14,17 @@ const GenerateInput = z.object({
   focus: z.string().max(300).optional(),
 });
 
+/** Schemas sent to the model stay constraint-free — bounds are enforced in code. */
 const QuestionsSchema = z.object({
-  questions: z
-    .array(
-      z.object({
-        question: z.string(),
-        topic: z.string(),
-        hint: z.string(),
-      }),
-    )
-    .min(1),
+  questions: z.array(
+    z.object({
+      question: z.string(),
+      topic: z.string(),
+      hint: z.string(),
+    }),
+  ),
 });
+
 
 const EvaluateInput = z.object({
   interviewId: z.string().uuid(),
