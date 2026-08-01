@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { generateText, Output } from "ai";
+import { generateText, NoObjectGeneratedError, Output } from "ai";
 import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
@@ -14,17 +14,17 @@ const GenerateInput = z.object({
   focus: z.string().max(300).optional(),
 });
 
+/** Schemas sent to the model stay constraint-free — bounds are enforced in code. */
 const QuestionsSchema = z.object({
-  questions: z
-    .array(
-      z.object({
-        question: z.string(),
-        topic: z.string(),
-        hint: z.string(),
-      }),
-    )
-    .min(1),
+  questions: z.array(
+    z.object({
+      question: z.string(),
+      topic: z.string(),
+      hint: z.string(),
+    }),
+  ),
 });
+
 
 const EvaluateInput = z.object({
   interviewId: z.string().uuid(),
@@ -65,29 +65,51 @@ function aiError(error: unknown): never {
   throw new Error(message);
 }
 
+/** Last-resort parse of raw model text when schema validation fails. */
+function parseFallback<T>(schema: z.ZodType<T>, text: string | undefined): T | null {
+  if (!text) return null;
+  const match = text.match(/\{[\s\S]*\}/);
+  if (!match) return null;
+  try {
+    const parsed = schema.safeParse(JSON.parse(match[0]));
+    return parsed.success ? parsed.data : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Generates questions with AI and stores a new in-progress interview. */
 export const generateInterview = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => GenerateInput.parse(input))
   .handler(async ({ data, context }) => {
-    let questions;
+    let generated: z.infer<typeof QuestionsSchema> | null = null;
     try {
       const { output } = await generateText({
         model: gateway()(MODEL),
         output: Output.object({ schema: QuestionsSchema }),
         system:
-          "You are a senior technical interviewer. Produce realistic, non-generic interview questions. Vary topics and never repeat a question.",
+          "You are a senior technical interviewer. Produce realistic, non-generic interview questions. Vary topics and never repeat a question. Reply with JSON only.",
         prompt: `Create exactly ${data.questionCount} ${data.difficulty} interview questions for a ${data.role} role.${
           data.focus ? ` Focus areas: ${data.focus}.` : ""
         } Each item: the question, a short topic label (e.g. "React", "System Design"), and a one-line hint for the candidate.`,
       });
-      questions = output.questions.slice(0, data.questionCount).map((q, index) => ({
-        id: `q${index + 1}`,
-        ...q,
-      }));
+      generated = output;
     } catch (error) {
-      aiError(error);
+      if (NoObjectGeneratedError.isInstance(error)) {
+        generated = parseFallback(QuestionsSchema, error.text);
+      }
+      if (!generated) aiError(error);
     }
+
+    const questions = (generated?.questions ?? [])
+      .slice(0, data.questionCount)
+      .map((q, index) => ({ id: `q${index + 1}`, ...q }));
+
+    if (questions.length === 0) {
+      throw new Error("The AI returned no questions. Please try again.");
+    }
+
 
     const { data: row, error } = await context.supabase
       .from("interviews")
@@ -134,19 +156,23 @@ export const evaluateInterview = createServerFn({ method: "POST" })
       )
       .join("\n\n");
 
-    let evaluation;
+    let evaluation: z.infer<typeof EvaluationSchema> | null = null;
     try {
       const { output } = await generateText({
         model: gateway()(MODEL),
         output: Output.object({ schema: EvaluationSchema }),
         system:
-          "You are a strict but fair technical interview evaluator. Scores are 0-100 integers. Unanswered questions score 0. Be concrete and actionable.",
+          "You are a strict but fair technical interview evaluator. Scores are 0-100 integers. Unanswered questions score 0. Be concrete and actionable. Reply with JSON only.",
         prompt: `Role: ${interview.role}. Difficulty: ${interview.difficulty}.\n\n${transcript}\n\nEvaluate the candidate. Return one perQuestion entry per question using the exact question id, plus overall, technical, communication and problem solving scores, a 2-3 sentence summary, strengths, weaknesses and suggestions.`,
       });
       evaluation = output;
     } catch (error) {
-      aiError(error);
+      if (NoObjectGeneratedError.isInstance(error)) {
+        evaluation = parseFallback(EvaluationSchema, error.text);
+      }
+      if (!evaluation) aiError(error);
     }
+
 
     const { error: updateError } = await context.supabase
       .from("interviews")
