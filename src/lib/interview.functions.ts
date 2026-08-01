@@ -156,19 +156,23 @@ export const evaluateInterview = createServerFn({ method: "POST" })
       )
       .join("\n\n");
 
-    let evaluation;
+    let evaluation: z.infer<typeof EvaluationSchema> | null = null;
     try {
       const { output } = await generateText({
         model: gateway()(MODEL),
         output: Output.object({ schema: EvaluationSchema }),
         system:
-          "You are a strict but fair technical interview evaluator. Scores are 0-100 integers. Unanswered questions score 0. Be concrete and actionable.",
+          "You are a strict but fair technical interview evaluator. Scores are 0-100 integers. Unanswered questions score 0. Be concrete and actionable. Reply with JSON only.",
         prompt: `Role: ${interview.role}. Difficulty: ${interview.difficulty}.\n\n${transcript}\n\nEvaluate the candidate. Return one perQuestion entry per question using the exact question id, plus overall, technical, communication and problem solving scores, a 2-3 sentence summary, strengths, weaknesses and suggestions.`,
       });
       evaluation = output;
     } catch (error) {
-      aiError(error);
+      if (NoObjectGeneratedError.isInstance(error)) {
+        evaluation = parseFallback(EvaluationSchema, error.text);
+      }
+      if (!evaluation) aiError(error);
     }
+
 
     const { error: updateError } = await context.supabase
       .from("interviews")
