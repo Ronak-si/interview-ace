@@ -18,7 +18,9 @@ import { Route as SignupRouteImport } from './routes/signup'
 import { Route as AuthenticatedAnalyticsRouteImport } from './routes/_authenticated.analytics'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated.dashboard'
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated.profile'
+import { Route as AuthenticatedInterviewIdRouteImport } from './routes/_authenticated.interview.$id'
 import { Route as AuthenticatedInterviewNewRouteImport } from './routes/_authenticated.interview.new'
+import { Route as AuthenticatedInterviewIdResultsRouteImport } from './routes/_authenticated.interview.$id.results'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -64,11 +66,23 @@ const AuthenticatedProfileRoute = AuthenticatedProfileRouteImport.update({
   path: '/profile',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedInterviewIdRoute =
+  AuthenticatedInterviewIdRouteImport.update({
+    id: '/interview/$id',
+    path: '/interview/$id',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedInterviewNewRoute =
   AuthenticatedInterviewNewRouteImport.update({
     id: '/interview/new',
     path: '/interview/new',
     getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedInterviewIdResultsRoute =
+  AuthenticatedInterviewIdResultsRouteImport.update({
+    id: '/results',
+    path: '/results',
+    getParentRoute: () => AuthenticatedInterviewIdRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
@@ -80,7 +94,9 @@ export interface FileRoutesByFullPath {
   '/analytics': typeof AuthenticatedAnalyticsRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/profile': typeof AuthenticatedProfileRoute
+  '/interview/$id': typeof AuthenticatedInterviewIdRouteWithChildren
   '/interview/new': typeof AuthenticatedInterviewNewRoute
+  '/interview/$id/results': typeof AuthenticatedInterviewIdResultsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -91,7 +107,9 @@ export interface FileRoutesByTo {
   '/analytics': typeof AuthenticatedAnalyticsRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/profile': typeof AuthenticatedProfileRoute
+  '/interview/$id': typeof AuthenticatedInterviewIdRouteWithChildren
   '/interview/new': typeof AuthenticatedInterviewNewRoute
+  '/interview/$id/results': typeof AuthenticatedInterviewIdResultsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -104,7 +122,9 @@ export interface FileRoutesById {
   '/_authenticated/analytics': typeof AuthenticatedAnalyticsRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
+  '/_authenticated/interview/$id': typeof AuthenticatedInterviewIdRouteWithChildren
   '/_authenticated/interview/new': typeof AuthenticatedInterviewNewRoute
+  '/_authenticated/interview/$id/results': typeof AuthenticatedInterviewIdResultsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -117,7 +137,9 @@ export interface FileRouteTypes {
     | '/analytics'
     | '/dashboard'
     | '/profile'
+    | '/interview/$id'
     | '/interview/new'
+    | '/interview/$id/results'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -128,7 +150,9 @@ export interface FileRouteTypes {
     | '/analytics'
     | '/dashboard'
     | '/profile'
+    | '/interview/$id'
     | '/interview/new'
+    | '/interview/$id/results'
   id:
     | '__root__'
     | '/'
@@ -140,7 +164,9 @@ export interface FileRouteTypes {
     | '/_authenticated/analytics'
     | '/_authenticated/dashboard'
     | '/_authenticated/profile'
+    | '/_authenticated/interview/$id'
     | '/_authenticated/interview/new'
+    | '/_authenticated/interview/$id/results'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -217,6 +243,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedProfileRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/interview/$id': {
+      id: '/_authenticated/interview/$id'
+      path: '/interview/$id'
+      fullPath: '/interview/$id'
+      preLoaderRoute: typeof AuthenticatedInterviewIdRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/interview/new': {
       id: '/_authenticated/interview/new'
       path: '/interview/new'
@@ -224,13 +257,35 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedInterviewNewRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/interview/$id/results': {
+      id: '/_authenticated/interview/$id/results'
+      path: '/results'
+      fullPath: '/interview/$id/results'
+      preLoaderRoute: typeof AuthenticatedInterviewIdResultsRouteImport
+      parentRoute: typeof AuthenticatedInterviewIdRoute
+    }
   }
 }
+
+interface AuthenticatedInterviewIdRouteChildren {
+  AuthenticatedInterviewIdResultsRoute: typeof AuthenticatedInterviewIdResultsRoute
+}
+
+const AuthenticatedInterviewIdRouteChildren: AuthenticatedInterviewIdRouteChildren =
+  {
+    AuthenticatedInterviewIdResultsRoute: AuthenticatedInterviewIdResultsRoute,
+  }
+
+const AuthenticatedInterviewIdRouteWithChildren =
+  AuthenticatedInterviewIdRoute._addFileChildren(
+    AuthenticatedInterviewIdRouteChildren,
+  )
 
 interface AuthenticatedRouteChildren {
   AuthenticatedAnalyticsRoute: typeof AuthenticatedAnalyticsRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedProfileRoute: typeof AuthenticatedProfileRoute
+  AuthenticatedInterviewIdRoute: typeof AuthenticatedInterviewIdRouteWithChildren
   AuthenticatedInterviewNewRoute: typeof AuthenticatedInterviewNewRoute
 }
 
@@ -238,6 +293,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedAnalyticsRoute: AuthenticatedAnalyticsRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedProfileRoute: AuthenticatedProfileRoute,
+  AuthenticatedInterviewIdRoute: AuthenticatedInterviewIdRouteWithChildren,
   AuthenticatedInterviewNewRoute: AuthenticatedInterviewNewRoute,
 }
 
