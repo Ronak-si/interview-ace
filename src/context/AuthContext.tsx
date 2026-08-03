@@ -22,7 +22,7 @@ type AuthContextValue = {
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (fullName: string, email: string, password: string) => Promise<{ needsEmail: boolean }>;
-  signInWithGoogle: () => Promise<void>;
+  signInWithGoogle: () => Promise<{ redirected: boolean }>;
   sendPasswordReset: (email: string) => Promise<void>;
   updatePassword: (password: string) => Promise<void>;
   updateProfile: (patch: Partial<Profile>) => Promise<void>;
@@ -111,9 +111,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signInWithGoogle = useCallback(async () => {
     const result = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin,
+      redirect_uri: `${window.location.origin}/auth/callback`,
     });
     if (result.error) throw new Error(result.error.message ?? "Google sign-in failed");
+    return { redirected: result.redirected === true };
   }, []);
 
   const sendPasswordReset = useCallback(async (email: string) => {

@@ -18,6 +18,7 @@ import { Route as SignupRouteImport } from './routes/signup'
 import { Route as AuthenticatedAnalyticsRouteImport } from './routes/_authenticated.analytics'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated.dashboard'
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated.profile'
+import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as AuthenticatedInterviewIdRouteImport } from './routes/_authenticated.interview.$id'
 import { Route as AuthenticatedInterviewNewRouteImport } from './routes/_authenticated.interview.new'
 import { Route as AuthenticatedInterviewIdResultsRouteImport } from './routes/_authenticated.interview.$id.results'
@@ -66,6 +67,11 @@ const AuthenticatedProfileRoute = AuthenticatedProfileRouteImport.update({
   path: '/profile',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthCallbackRoute = AuthCallbackRouteImport.update({
+  id: '/auth/callback',
+  path: '/auth/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedInterviewIdRoute =
   AuthenticatedInterviewIdRouteImport.update({
     id: '/interview/$id',
@@ -94,6 +100,7 @@ export interface FileRoutesByFullPath {
   '/analytics': typeof AuthenticatedAnalyticsRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/profile': typeof AuthenticatedProfileRoute
+  '/auth/callback': typeof AuthCallbackRoute
   '/interview/$id': typeof AuthenticatedInterviewIdRouteWithChildren
   '/interview/new': typeof AuthenticatedInterviewNewRoute
   '/interview/$id/results': typeof AuthenticatedInterviewIdResultsRoute
@@ -107,6 +114,7 @@ export interface FileRoutesByTo {
   '/analytics': typeof AuthenticatedAnalyticsRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/profile': typeof AuthenticatedProfileRoute
+  '/auth/callback': typeof AuthCallbackRoute
   '/interview/$id': typeof AuthenticatedInterviewIdRouteWithChildren
   '/interview/new': typeof AuthenticatedInterviewNewRoute
   '/interview/$id/results': typeof AuthenticatedInterviewIdResultsRoute
@@ -122,6 +130,7 @@ export interface FileRoutesById {
   '/_authenticated/analytics': typeof AuthenticatedAnalyticsRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
+  '/auth/callback': typeof AuthCallbackRoute
   '/_authenticated/interview/$id': typeof AuthenticatedInterviewIdRouteWithChildren
   '/_authenticated/interview/new': typeof AuthenticatedInterviewNewRoute
   '/_authenticated/interview/$id/results': typeof AuthenticatedInterviewIdResultsRoute
@@ -137,6 +146,7 @@ export interface FileRouteTypes {
     | '/analytics'
     | '/dashboard'
     | '/profile'
+    | '/auth/callback'
     | '/interview/$id'
     | '/interview/new'
     | '/interview/$id/results'
@@ -150,6 +160,7 @@ export interface FileRouteTypes {
     | '/analytics'
     | '/dashboard'
     | '/profile'
+    | '/auth/callback'
     | '/interview/$id'
     | '/interview/new'
     | '/interview/$id/results'
@@ -164,6 +175,7 @@ export interface FileRouteTypes {
     | '/_authenticated/analytics'
     | '/_authenticated/dashboard'
     | '/_authenticated/profile'
+    | '/auth/callback'
     | '/_authenticated/interview/$id'
     | '/_authenticated/interview/new'
     | '/_authenticated/interview/$id/results'
@@ -176,6 +188,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   SignupRoute: typeof SignupRoute
+  AuthCallbackRoute: typeof AuthCallbackRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -243,6 +256,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedProfileRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/auth/callback': {
+      id: '/auth/callback'
+      path: '/auth/callback'
+      fullPath: '/auth/callback'
+      preLoaderRoute: typeof AuthCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/interview/$id': {
       id: '/_authenticated/interview/$id'
       path: '/interview/$id'
@@ -308,17 +328,8 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   SignupRoute: SignupRoute,
+  AuthCallbackRoute: AuthCallbackRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
