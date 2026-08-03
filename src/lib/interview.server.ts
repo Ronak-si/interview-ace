@@ -1,9 +1,13 @@
 import { generateText } from "ai";
 import { z } from "zod";
 
+import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
+
 import { createLovableAiGatewayProvider } from "@/lib/ai-gateway.server";
 
-const MODEL = "google/gemini-3.6-flash";
+// Lovable hosting: managed AI gateway. Self-hosted (Vercel): your own Gemini key.
+const LOVABLE_MODEL = "google/gemini-3.6-flash";
+const GEMINI_MODEL = process.env["GEMINI_MODEL"] || "gemini-2.5-flash";
 
 const QuestionsSchema = z.object({
   questions: z.array(
