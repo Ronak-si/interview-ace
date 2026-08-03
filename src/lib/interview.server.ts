@@ -1,9 +1,13 @@
 import { generateText } from "ai";
 import { z } from "zod";
 
+import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
+
 import { createLovableAiGatewayProvider } from "@/lib/ai-gateway.server";
 
-const MODEL = "google/gemini-3.6-flash";
+// Lovable hosting: managed AI gateway. Self-hosted (Vercel): your own Gemini key.
+const LOVABLE_MODEL = "google/gemini-3.6-flash";
+const GEMINI_MODEL = process.env["GEMINI_MODEL"] || "gemini-2.5-flash";
 
 const QuestionsSchema = z.object({
   questions: z.array(
@@ -45,10 +49,23 @@ type Question = { id: string; question: string; topic: string; hint: string };
 
 type Evaluation = z.infer<typeof EvaluationSchema>;
 
-function getGateway() {
+/** Returns a model bound to whichever AI provider this deployment is configured for. */
+function getModel() {
+  const geminiKey = process.env["GEMINI_API_KEY"];
+  if (geminiKey) {
+    const google = createOpenAICompatible({
+      name: "google",
+      baseURL: "https://generativelanguage.googleapis.com/v1beta/openai",
+      apiKey: geminiKey,
+    });
+    return google(GEMINI_MODEL);
+  }
+
   const key = process.env["LOVABLE_API_KEY"];
-  if (!key) throw new Error("AI is not configured yet. Missing LOVABLE_API_KEY.");
-  return createLovableAiGatewayProvider(key);
+  if (!key) {
+    throw new Error("AI is not configured. Set GEMINI_API_KEY (or LOVABLE_API_KEY on Lovable).");
+  }
+  return createLovableAiGatewayProvider(key)(LOVABLE_MODEL);
 }
 
 function extractJson(text: string | undefined): unknown {
@@ -114,7 +131,7 @@ function friendlyAiError(error: unknown): never {
 export async function generateInterviewQuestions(data: GenerateData) {
   try {
     const { text } = await generateText({
-      model: getGateway()(MODEL),
+      model: getModel(),
       system:
         "You are a senior technical interviewer. Produce realistic, non-generic interview questions. Vary topics and never repeat a question. Return only valid JSON with no markdown or commentary.",
       prompt: `Create exactly ${data.questionCount} ${data.difficulty} interview questions for a ${data.role} role.${
@@ -134,7 +151,7 @@ export async function generateInterviewQuestions(data: GenerateData) {
 export async function evaluateInterviewAnswers(prompt: string) {
   try {
     const { text } = await generateText({
-      model: getGateway()(MODEL),
+      model: getModel(),
       system:
         "You are a strict but fair technical interview evaluator. Scores are 0-100 integers. Unanswered questions score 0. Be concrete and actionable. Return only valid JSON with no markdown or commentary.",
       prompt: `${prompt}\n\nReturn exactly this shape: {"overallScore":0,"technicalScore":0,"communicationScore":0,"problemSolvingScore":0,"summary":"...","strengths":["..."],"weaknesses":["..."],"suggestions":["..."],"perQuestion":[{"questionId":"q1","score":0,"feedback":"...","idealAnswer":"..."}]}.`,
