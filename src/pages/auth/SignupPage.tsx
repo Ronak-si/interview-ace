@@ -55,7 +55,11 @@ export default function SignupPage() {
   const onGoogle = async () => {
     setGoogleLoading(true);
     try {
-      await signInWithGoogle();
+      const result = await signInWithGoogle();
+      if (!result.redirected) {
+        toast.success("Account ready — let's get started!");
+        void navigate({ to: "/dashboard" });
+      }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Google sign-in failed");
     } finally {
