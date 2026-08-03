@@ -49,10 +49,23 @@ type Question = { id: string; question: string; topic: string; hint: string };
 
 type Evaluation = z.infer<typeof EvaluationSchema>;
 
-function getGateway() {
+/** Returns a model bound to whichever AI provider this deployment is configured for. */
+function getModel() {
+  const geminiKey = process.env["GEMINI_API_KEY"];
+  if (geminiKey) {
+    const google = createOpenAICompatible({
+      name: "google",
+      baseURL: "https://generativelanguage.googleapis.com/v1beta/openai",
+      apiKey: geminiKey,
+    });
+    return google(GEMINI_MODEL);
+  }
+
   const key = process.env["LOVABLE_API_KEY"];
-  if (!key) throw new Error("AI is not configured yet. Missing LOVABLE_API_KEY.");
-  return createLovableAiGatewayProvider(key);
+  if (!key) {
+    throw new Error("AI is not configured. Set GEMINI_API_KEY (or LOVABLE_API_KEY on Lovable).");
+  }
+  return createLovableAiGatewayProvider(key)(LOVABLE_MODEL);
 }
 
 function extractJson(text: string | undefined): unknown {
