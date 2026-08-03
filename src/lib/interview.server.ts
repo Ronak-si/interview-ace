@@ -131,7 +131,7 @@ function friendlyAiError(error: unknown): never {
 export async function generateInterviewQuestions(data: GenerateData) {
   try {
     const { text } = await generateText({
-      model: getGateway()(MODEL),
+      model: getModel(),
       system:
         "You are a senior technical interviewer. Produce realistic, non-generic interview questions. Vary topics and never repeat a question. Return only valid JSON with no markdown or commentary.",
       prompt: `Create exactly ${data.questionCount} ${data.difficulty} interview questions for a ${data.role} role.${
@@ -151,7 +151,7 @@ export async function generateInterviewQuestions(data: GenerateData) {
 export async function evaluateInterviewAnswers(prompt: string) {
   try {
     const { text } = await generateText({
-      model: getGateway()(MODEL),
+      model: getModel(),
       system:
         "You are a strict but fair technical interview evaluator. Scores are 0-100 integers. Unanswered questions score 0. Be concrete and actionable. Return only valid JSON with no markdown or commentary.",
       prompt: `${prompt}\n\nReturn exactly this shape: {"overallScore":0,"technicalScore":0,"communicationScore":0,"problemSolvingScore":0,"summary":"...","strengths":["..."],"weaknesses":["..."],"suggestions":["..."],"perQuestion":[{"questionId":"q1","score":0,"feedback":"...","idealAnswer":"..."}]}.`,
