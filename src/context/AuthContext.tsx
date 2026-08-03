@@ -110,8 +110,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signInWithGoogle = useCallback(async () => {
+    const redirectTo = `${window.location.origin}/auth/callback`;
+
+    // Self-hosted (e.g. Vercel): use your own Google OAuth credentials via the
+    // backend auth provider. Lovable hosting: use the managed OAuth broker.
+    if (import.meta.env.VITE_USE_SUPABASE_OAUTH === "true") {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: { redirectTo },
+      });
+      if (error) throw new Error(error.message);
+      return { redirected: true };
+    }
+
     const result = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: `${window.location.origin}/auth/callback`,
+      redirect_uri: redirectTo,
     });
     if (result.error) throw new Error(result.error.message ?? "Google sign-in failed");
     return { redirected: result.redirected === true };
