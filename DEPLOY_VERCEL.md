@@ -45,20 +45,27 @@ falls back to the managed AI gateway (Lovable hosting).
 ## 5. Google sign-in (own credentials)
 
 The managed Lovable OAuth broker does not exist on Vercel, which is why
-`/~oauth/initiate` returned 404. With `VITE_USE_SUPABASE_OAUTH=true` the app
-uses the backend auth provider instead, so you must register your own Google
-OAuth client:
+`/~oauth/initiate` returned 404. Off Lovable hosting the app automatically uses
+the backend auth provider instead, so you must register your own Google OAuth
+client:
 
 1. https://console.cloud.google.com → **APIs & Services → OAuth consent screen**
    → configure it (scopes: `userinfo.email`, `userinfo.profile`, `openid`).
 2. **Credentials → Create credentials → OAuth client ID → Web application**.
-3. Authorized JavaScript origins: `https://your-app.vercel.app`
-4. Authorized redirect URI: the callback URL shown in the project's auth
-   settings (Cloud → Users → Auth Settings → Google).
+3. Authorized JavaScript origins:
+   `https://ai-powered-interview-preparation-pl-zeta.vercel.app`
+4. Authorized redirect URI (copy it from the Google provider section of the
+   project's auth settings — it looks like
+   `https://<project>.supabase.co/auth/v1/callback`).
 5. Paste the generated **Client ID** and **Client secret** into that same Google
-   provider section of the auth settings.
-6. Add `https://your-app.vercel.app/auth/callback` to the allowed redirect URLs
-   in the auth settings.
+   provider section of the auth settings (Cloud → Users → Auth Settings → Google).
+6. In Cloud → Users → Auth Settings → URL configuration set:
+   - Site URL: `https://ai-powered-interview-preparation-pl-zeta.vercel.app`
+   - Additional redirect URL:
+     `https://ai-powered-interview-preparation-pl-zeta.vercel.app/auth/callback`
+     (add `https://ai-powered-interview-preparation-pl-zeta.vercel.app/**` too so
+     password-reset and email links work)
+
 
 ## 6. Deploy
 

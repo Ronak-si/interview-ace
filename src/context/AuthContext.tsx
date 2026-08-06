@@ -112,9 +112,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signInWithGoogle = useCallback(async () => {
     const redirectTo = `${window.location.origin}/auth/callback`;
 
-    // Self-hosted (e.g. Vercel): use your own Google OAuth credentials via the
-    // backend auth provider. Lovable hosting: use the managed OAuth broker.
-    if (import.meta.env.VITE_USE_SUPABASE_OAUTH === "true") {
+    // The managed OAuth broker (/~oauth/initiate) only exists on Lovable hosting.
+    // Anywhere else (Vercel, custom self-hosting) go straight through the backend
+    // auth provider with your own Google OAuth credentials.
+    const host = window.location.hostname;
+    const isLovableHost =
+      host.endsWith(".lovable.app") ||
+      host.endsWith(".lovableproject.com") ||
+      host === "localhost" ||
+      host === "127.0.0.1";
+
+    if (import.meta.env.VITE_USE_SUPABASE_OAUTH === "true" || !isLovableHost) {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: { redirectTo },
